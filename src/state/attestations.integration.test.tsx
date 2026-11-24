@@ -3,6 +3,8 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { ToastProvider } from '../components/ToastContext'
 import ToastContainer from '../components/ToastContainer'
+import { EnvironmentProvider } from '../components/EnvironmentContext'
+import { LocaleProvider } from '../i18n/provider'
 import { AttestationsProvider } from './attestations'
 import Dashboard from '../pages/Dashboard'
 import Attestations from '../pages/Attestations'
@@ -11,18 +13,22 @@ import AttestationDetail from '../pages/AttestationDetail'
 describe('Dashboard attestation flow', () => {
   it('creates a run visible in the attestations list and detail page', async () => {
     render(
-      <AttestationsProvider>
-        <ToastProvider>
-          <ToastContainer />
-          <MemoryRouter initialEntries={['/dashboard']}>
-            <Routes>
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/attestations" element={<Attestations />} />
-              <Route path="/attestations/:id" element={<AttestationDetail />} />
-            </Routes>
-          </MemoryRouter>
-        </ToastProvider>
-      </AttestationsProvider>,
+      <LocaleProvider>
+        <AttestationsProvider>
+          <ToastProvider>
+            <ToastContainer />
+            <EnvironmentProvider>
+              <MemoryRouter initialEntries={['/dashboard']}>
+                <Routes>
+                  <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="/attestations" element={<Attestations />} />
+                  <Route path="/attestations/:id" element={<AttestationDetail />} />
+                </Routes>
+              </MemoryRouter>
+            </EnvironmentProvider>
+          </ToastProvider>
+        </AttestationsProvider>
+      </LocaleProvider>,
     )
 
     fireEvent.click(screen.getByRole('button', { name: 'Trigger monthly revenue report' }))

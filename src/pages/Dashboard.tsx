@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useIntl } from 'react-intl'
 import AttestationConfirmModal from '../components/AttestationConfirmModal'
 import UsageMeter from '../components/UsageMeter'
 import StaleDataChip from '../components/StaleDataChip'
@@ -8,23 +9,17 @@ import { useToast } from '../components/ToastContext'
 import { useAttestations } from '../state/attestations'
 import { DEFAULT_TRIGGER_DETAILS } from '../state/attestationMocks'
 
-const METRICS = [
-  { label: 'Total Revenue', value: '$84,320', sub: 'YTD 2026' },
-  { label: 'Attestations', value: '12', sub: 'This month' },
-  { label: 'Revenue Sources', value: '3', sub: 'Connected' },
-]
-
 // Demo usage data — swap for real API values in production
 const USAGE_DATA = [
   {
-    label: 'Attestations',
+    labelId: 'dashboard.usage.attestations',
     used: 9,
     limit: 10,
     unit: 'attestations',
     period: 'July 2026',
   },
   {
-    label: 'API calls',
+    labelId: 'dashboard.usage.apiCalls',
     used: 7_520,
     limit: 10_000,
     unit: 'calls',
@@ -40,12 +35,19 @@ export function isAttestationDataStale(lastUpdated: string, now = Date.now()) {
 }
 
 export default function Dashboard() {
+  const intl = useIntl()
   const [modalOpen, setModalOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [attestError, setAttestError] = useState<string | null>(null)
   const [now, setNow] = useState(() => Date.now())
   const { trigger, lastUpdated, refresh } = useAttestations()
   const { addToast } = useToast()
+
+  const METRICS = [
+    { label: intl.formatMessage({ id: 'dashboard.metrics.totalRevenue' }), value: '$84,320', sub: intl.formatMessage({ id: 'dashboard.metrics.ytd' }) },
+    { label: intl.formatMessage({ id: 'dashboard.metrics.attestations' }), value: '12', sub: intl.formatMessage({ id: 'dashboard.metrics.thisMonth' }) },
+    { label: intl.formatMessage({ id: 'dashboard.metrics.revenueSources' }), value: '3', sub: intl.formatMessage({ id: 'dashboard.metrics.connected' }) },
+  ]
 
   useEffect(() => {
     const interval = window.setInterval(() => setNow(Date.now()), 30 * 1000)
@@ -71,10 +73,10 @@ export default function Dashboard() {
     setAttestError(null)
     try {
       await trigger(DEFAULT_TRIGGER_DETAILS)
-      addToast('Attestation submitted successfully.', 'success')
+      addToast(intl.formatMessage({ id: 'dashboard.toast.attestationSubmitted' }), 'success')
       setModalOpen(false)
     } catch (err) {
-      setAttestError(err instanceof Error ? err.message : 'Failed to process attestation')
+      setAttestError(err instanceof Error ? err.message : intl.formatMessage({ id: 'dashboard.toast.attestationFailed' }))
     } finally {
       setIsLoading(false)
     }
@@ -87,20 +89,20 @@ export default function Dashboard() {
 
   return (
     <div className="dashboard-page">
-      <h1 style={{ marginTop: 0 }}>Dashboard</h1>
+      <h1 style={{ marginTop: 0 }}>{intl.formatMessage({ id: 'dashboard.title' })}</h1>
       <p style={{ color: 'var(--muted)' }}>
-        Connect your revenue sources and manage attestations from here. (Demo build: all figures shown are sample data.)
+        {intl.formatMessage({ id: 'dashboard.subtitle' })} {intl.formatMessage({ id: 'dashboard.demoNote' })}
       </p>
       <div className="dashboard-data-status" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
         {isStale && <StaleDataChip fetchedAt={lastUpdated} />}
         <button type="button" className="dashboard-action-btn" onClick={handleRefresh}>
-          Refresh data
+          {intl.formatMessage({ id: 'dashboard.refreshData' })}
         </button>
       </div>
 
       <div className="dashboard-grid">
         <section className="dashboard-section">
-          <h2>Key metrics</h2>
+          <h2>{intl.formatMessage({ id: 'dashboard.metrics.title' })}</h2>
           <div className="dashboard-metrics-grid">
             {METRICS.map((m, i) => {
               const refs = [revenueRef, attestationsRef, sourcesRef]
@@ -131,11 +133,11 @@ export default function Dashboard() {
           className={`dashboard-section${actionsVisible ? ' chart-entrance chart-entrance-animate' : ' chart-entrance'}`}
           ref={actionsRef}
         >
-          <h2>Quick actions</h2>
+          <h2>{intl.formatMessage({ id: 'dashboard.quickActions.title' })}</h2>
           <ul className="dashboard-actions-list">
             <li>
-              <Link to="/connect-source/provider" aria-label="Open connect source wizard">
-                Connect Stripe, Razorpay, or Shopify
+              <Link to="/connect-source/provider" aria-label={intl.formatMessage({ id: 'dashboard.quickActions.connectSourceAriaLabel' })}>
+                {intl.formatMessage({ id: 'dashboard.quickActions.connectSource' })}
               </Link>
             </li>
             <li>
@@ -144,10 +146,10 @@ export default function Dashboard() {
                 className="dashboard-action-btn"
                 onClick={() => setModalOpen(true)}
               >
-                Trigger monthly revenue report
+                {intl.formatMessage({ id: 'dashboard.quickActions.report' })}
               </button>
             </li>
-            <li><Link to="/attestations">View attestation history</Link></li>
+            <li><Link to="/attestations">{intl.formatMessage({ id: 'dashboard.quickActions.attestationHistory' })}</Link></li>
           </ul>
         </section>
 
@@ -156,12 +158,12 @@ export default function Dashboard() {
           ref={usageSectionRef}
           aria-labelledby="usage-heading"
         >
-          <h2 id="usage-heading">Usage this month</h2>
+          <h2 id="usage-heading">{intl.formatMessage({ id: 'dashboard.usageThisMonth' })}</h2>
           <div style={{ display: 'grid', gap: '1rem' }}>
             {USAGE_DATA.map((u) => (
               <UsageMeter
-                key={u.label}
-                label={u.label}
+                key={u.labelId}
+                label={intl.formatMessage({ id: u.labelId })}
                 used={u.used}
                 limit={u.limit}
                 unit={u.unit}

@@ -5,12 +5,12 @@
  */
 export const SUPPORTED_LOCALES = [
   { code: 'en', label: 'English',             nativeLabel: 'English',    dir: 'ltr', translationCompletion: 100 },
-  { code: 'es', label: 'Spanish',             nativeLabel: 'Español',    dir: 'ltr', translationCompletion: 94  },
-  { code: 'fr', label: 'French',              nativeLabel: 'Français',   dir: 'ltr', translationCompletion: 91  },
-  { code: 'ar', label: 'Arabic',              nativeLabel: 'العربية',    dir: 'rtl', translationCompletion: 78  },
-  { code: 'zh', label: 'Chinese (Simplified)', nativeLabel: '中文',      dir: 'ltr', translationCompletion: 82  },
-  { code: 'de', label: 'German',              nativeLabel: 'Deutsch',    dir: 'ltr', translationCompletion: 88  },
-  { code: 'fi', label: 'Finnish',             nativeLabel: 'Suomi',      dir: 'ltr', translationCompletion: 71  },
+  { code: 'es', label: 'Spanish',             nativeLabel: 'Español',    dir: 'ltr', translationCompletion: 100 },
+  { code: 'fr', label: 'French',              nativeLabel: 'Français',   dir: 'ltr', translationCompletion: 100 },
+  { code: 'ar', label: 'Arabic',              nativeLabel: 'العربية',    dir: 'rtl', translationCompletion: 100 },
+  { code: 'zh', label: 'Chinese (Simplified)', nativeLabel: '中文',      dir: 'ltr', translationCompletion: 100 },
+  { code: 'de', label: 'German',              nativeLabel: 'Deutsch',    dir: 'ltr', translationCompletion: 100 },
+  { code: 'fi', label: 'Finnish',             nativeLabel: 'Suomi',      dir: 'ltr', translationCompletion: 100 },
 ] as const
 
 export const DEFAULT_LOCALE = 'en'

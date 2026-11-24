@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ToastProvider, useToast } from '../components/ToastContext'
+import { LocaleProvider } from '../i18n/provider'
 import RevenueSources from './RevenueSources'
 import { sourcesStore } from '../store/sourcesStore'
 
@@ -21,10 +22,12 @@ function ToastActions() {
 function renderPage() {
   return render(
     <MemoryRouter>
-      <ToastProvider>
-        <RevenueSources />
-        <ToastActions />
-      </ToastProvider>
+      <LocaleProvider>
+        <ToastProvider>
+          <RevenueSources />
+          <ToastActions />
+        </ToastProvider>
+      </LocaleProvider>
     </MemoryRouter>,
   )
 }

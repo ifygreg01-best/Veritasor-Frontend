@@ -5,14 +5,17 @@ import Dashboard from './Dashboard'
 import { isAttestationDataStale, STALE_DATA_THRESHOLD_MS } from './Dashboard'
 import { ToastProvider } from '../components/ToastContext'
 import { AttestationsProvider } from '../state/attestations'
+import { LocaleProvider } from '../i18n/provider'
 
 function renderPage() {
   return render(
-    <AttestationsProvider>
-      <ToastProvider>
-        <MemoryRouter><Dashboard /></MemoryRouter>
-      </ToastProvider>
-    </AttestationsProvider>,
+    <LocaleProvider>
+      <AttestationsProvider>
+        <ToastProvider>
+          <MemoryRouter><Dashboard /></MemoryRouter>
+        </ToastProvider>
+      </AttestationsProvider>
+    </LocaleProvider>,
   )
 }
 

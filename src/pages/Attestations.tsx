@@ -1,11 +1,12 @@
 import { memo, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
+import { useIntl } from 'react-intl'
 import TriggerAttestationFAB from '../components/TriggerAttestationFAB'
 import AttestationConfirmModal, { type FeeInfo } from '../components/AttestationConfirmModal'
 import { AttestationCalendar } from '../components/scheduling/AttestationCalendar'
 import { getAttestationChartGeometry, getAttestationChartLabelIndices } from '../utils/attestationChartData'
 import { EmptyStateIllustration } from '../components/EmptyStateIllustrations'
-import SearchFilter, { parseFilterState, type ChipDef } from '../components/SearchFilter'
+import SearchFilter, { parseFilterState } from '../components/SearchFilter'
 import { useToast } from '../components/ToastContext'
 import { useAttestations, type Attestation } from '../state/attestations'
 import { DEFAULT_TRIGGER_DETAILS } from '../state/attestationMocks'
@@ -19,10 +20,10 @@ import {
 
 export const PAGE_SIZE = 50
 
-const STATUS_CHIPS: ChipDef[] = [
-  { id: 'verified', label: 'Verified', color: 'success' },
-  { id: 'pending', label: 'Pending', color: 'warning' },
-  { id: 'failed', label: 'Failed', color: 'danger' },
+const STATUS_CHIPS: Array<{ id: string; messageId: string; color: 'success' | 'warning' | 'danger' }> = [
+  { id: 'verified', messageId: 'attestations.status.verified', color: 'success' },
+  { id: 'pending', messageId: 'attestations.status.pending', color: 'warning' },
+  { id: 'failed', messageId: 'attestations.status.failed', color: 'danger' },
 ]
 
 const MOCK_FEE_INFO: FeeInfo = {
@@ -40,6 +41,7 @@ type AttestationListItem = Pick<Attestation, 'id' | 'status' | 'createdAt' | 'me
 
 type AttestationStatusMeta = {
   label: string
+  messageId: string
   background: string
   border: string
   text: string
@@ -50,6 +52,7 @@ type AttestationStatusMeta = {
 const STATUS_META: Record<AttestationStatus, AttestationStatusMeta> = {
   pending: {
     label: "Pending",
+    messageId: "attestations.status.pending",
     background: "var(--warning-soft)",
     border: "rgba(251, 191, 36, 0.35)",
     text: "#fff1c4",
@@ -81,6 +84,7 @@ const STATUS_META: Record<AttestationStatus, AttestationStatusMeta> = {
   },
   verified: {
     label: "Verified",
+    messageId: "attestations.status.verified",
     background: "var(--success-soft)",
     border: "rgba(52, 211, 153, 0.35)",
     text: "#dcfff1",
@@ -107,6 +111,7 @@ const STATUS_META: Record<AttestationStatus, AttestationStatusMeta> = {
   },
   failed: {
     label: "Failed",
+    messageId: "attestations.status.failed",
     background: "var(--danger-soft)",
     border: "rgba(251, 113, 133, 0.35)",
     text: "#ffd7dd",
@@ -219,6 +224,7 @@ function buildTrendBuckets(attestations: AttestationListItem[]): TrendBucket[] {
 // ─── Sub-components ───────────────────────────────────────────────────────
 
 function StatusBadge({ status }: { status: AttestationStatus }) {
+  const intl = useIntl()
   const meta = STATUS_META[status];
   const Icon = meta.icon;
 
@@ -243,15 +249,16 @@ function StatusBadge({ status }: { status: AttestationStatus }) {
       <span style={{ display: "inline-flex", alignItems: "center" }}>
         <Icon size={16} />
       </span>
-      <span>{meta.label}</span>
+      <span>{intl.formatMessage({ id: meta.messageId })}</span>
     </span>
   );
 }
 
 function EmptyState({ onRunReport }: { onRunReport: () => void }) {
+  const intl = useIntl()
   return (
     <section
-      aria-label="Attestations empty state"
+      aria-label={intl.formatMessage({ id: 'attestations.aria.emptyState' })}
       style={{
         marginTop: "var(--density-gap)",
         padding: "var(--density-padding)",
@@ -263,11 +270,9 @@ function EmptyState({ onRunReport }: { onRunReport: () => void }) {
     >
       <EmptyStateIllustration type="attestations" />
       <div style={{ display: 'grid', gap: '0.75rem', maxWidth: 720 }}>
-        <h2 style={{ margin: 0, fontSize: '1.15rem' }}>No attestations yet</h2>
+        <h2 style={{ margin: 0, fontSize: '1.15rem' }}>{intl.formatMessage({ id: 'attestations.empty.title' })}</h2>
         <p style={{ margin: 0, color: 'var(--muted)', lineHeight: 1.65 }}>
-          Attestations appear here after you run a revenue report. Each
-          attestation includes an on-chain Merkle root and a proof-history
-          timeline as verification progresses.
+          {intl.formatMessage({ id: 'attestations.empty.description' })}
         </p>
         <div
           style={{
@@ -294,7 +299,7 @@ function EmptyState({ onRunReport }: { onRunReport: () => void }) {
               cursor: 'pointer',
             }}
           >
-            Run a revenue report
+            {intl.formatMessage({ id: 'attestations.empty.runReport' })}
           </button>
           <div
             style={{
@@ -308,8 +313,7 @@ function EmptyState({ onRunReport }: { onRunReport: () => void }) {
               lineHeight: 1.55,
             }}
           >
-            Tip: once you've run a report, you'll be able to review the proof
-            timeline and copy the Merkle root for audits.
+            {intl.formatMessage({ id: 'attestations.empty.tip' })}
           </div>
         </div>
       </div>
@@ -321,15 +325,16 @@ const AttestationTrendChart = memo(function AttestationTrendChart({
 }: {
   attestations: AttestationListItem[]
 }) {
+  const intl = useIntl()
   const [view, setView] = useState<'chart' | 'table'>('chart');
   const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
   const buckets = buildTrendBuckets(attestations);
 
   if (buckets.length === 0) {
     return (
-      <section aria-label="Attestation activity trend" style={{ marginTop: '1.5rem', padding: 'var(--density-padding)', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--surface)' }}>
-        <h2 style={{ margin: 0, fontSize: '1.05rem' }}>Attestation activity</h2>
-        <p style={{ margin: '0.5rem 0 0', color: 'var(--muted)' }}>No attestation history is available to chart.</p>
+      <section aria-label={intl.formatMessage({ id: 'attestations.aria.activityTrend' })} style={{ marginTop: '1.5rem', padding: 'var(--density-padding)', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--surface)' }}>
+        <h2 style={{ margin: 0, fontSize: '1.05rem' }}>{intl.formatMessage({ id: 'attestations.chart.activity' })}</h2>
+        <p style={{ margin: '0.5rem 0 0', color: 'var(--muted)' }}>{intl.formatMessage({ id: 'attestations.chart.noHistory' })}</p>
       </section>
     );
   }
@@ -351,28 +356,28 @@ const AttestationTrendChart = memo(function AttestationTrendChart({
   }
 
   return (
-    <section aria-label="Attestation activity trend" style={{ marginTop: '1.5rem', padding: 'var(--density-padding)', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--surface)' }}>
+    <section aria-label={intl.formatMessage({ id: 'attestations.aria.activityTrend' })} style={{ marginTop: '1.5rem', padding: 'var(--density-padding)', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--surface)' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
         <div>
-          <h2 style={{ margin: 0, fontSize: '1.05rem' }}>Attestation activity</h2>
-          <p style={{ margin: '0.25rem 0 0', color: 'var(--muted)', fontSize: '0.9rem' }}>Daily attestation volume by status.</p>
+          <h2 style={{ margin: 0, fontSize: '1.05rem' }}>{intl.formatMessage({ id: 'attestations.chart.activity' })}</h2>
+          <p style={{ margin: '0.25rem 0 0', color: 'var(--muted)', fontSize: '0.9rem' }}>{intl.formatMessage({ id: 'attestations.chart.dailyVolume' })}</p>
         </div>
         <button type="button" onClick={() => setView(view === 'chart' ? 'table' : 'chart')} style={{ minHeight: 'var(--density-touch-min)', padding: '0.5rem 0.75rem', borderRadius: 10, border: '1px solid var(--border)', background: 'rgba(148, 163, 184, 0.08)', color: 'var(--text)', fontWeight: 700, cursor: 'pointer' }}>
-          {view === 'chart' ? 'View as table' : 'View as chart'}
+          {view === 'chart' ? intl.formatMessage({ id: 'attestations.chart.viewAsTable' }) : intl.formatMessage({ id: 'attestations.chart.viewAsChart' })}
         </button>
       </div>
 
       {view === 'table' ? (
         <div style={{ overflowX: 'auto' }}>
-          <table aria-label="Attestation history" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
-            <caption style={{ textAlign: 'left', marginBottom: '0.5rem', color: 'var(--muted)' }}>Attestation volume by date and status</caption>
+          <table aria-label={intl.formatMessage({ id: 'attestations.aria.historyTable' })} style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
+            <caption style={{ textAlign: 'left', marginBottom: '0.5rem', color: 'var(--muted)' }}>{intl.formatMessage({ id: 'attestations.chart.tableLabel' })}</caption>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--muted)', textAlign: 'left' }}>
-                <th scope="col" style={{ padding: '0.5rem 0.5rem 0.5rem 0' }}>Date</th>
-                <th scope="col" style={{ padding: '0.5rem' }}>Verified</th>
-                <th scope="col" style={{ padding: '0.5rem' }}>Pending</th>
-                <th scope="col" style={{ padding: '0.5rem' }}>Failed</th>
-                <th scope="col" style={{ padding: '0.5rem 0 0.5rem 0.5rem' }}>Total</th>
+                <th scope="col" style={{ padding: '0.5rem 0.5rem 0.5rem 0' }}>{intl.formatMessage({ id: 'attestations.chart.col.date' })}</th>
+                <th scope="col" style={{ padding: '0.5rem' }}>{intl.formatMessage({ id: 'attestations.chart.col.verified' })}</th>
+                <th scope="col" style={{ padding: '0.5rem' }}>{intl.formatMessage({ id: 'attestations.chart.col.pending' })}</th>
+                <th scope="col" style={{ padding: '0.5rem' }}>{intl.formatMessage({ id: 'attestations.chart.col.failed' })}</th>
+                <th scope="col" style={{ padding: '0.5rem 0 0.5rem 0.5rem' }}>{intl.formatMessage({ id: 'attestations.chart.col.total' })}</th>
               </tr>
             </thead>
             <tbody>
@@ -390,14 +395,14 @@ const AttestationTrendChart = memo(function AttestationTrendChart({
         </div>
       ) : (
         <>
-          <figure aria-label="Attestation history" style={{ margin: 0 }}>
+          <figure aria-label={intl.formatMessage({ id: 'attestations.aria.historyFigure' })} style={{ margin: 0 }}>
           <div role="status" style={{ minHeight: '1.5rem', fontSize: '0.9rem', color: 'var(--muted)', marginBottom: '0.5rem' }}>
             {selected
-              ? `${selected.label}: ${selected.total} attestations, ${selected.counts.verified} verified, ${selected.counts.pending} pending, ${selected.counts.failed} failed`
-              : 'Focus a bar to see daily details.'}
+              ? intl.formatMessage({ id: 'attestations.chart.barDetail' }, { label: selected.label, total: selected.total, verified: selected.counts.verified, pending: selected.counts.pending, failed: selected.counts.failed })
+              : intl.formatMessage({ id: 'attestations.chart.focusHint' })}
           </div>
           <svg viewBox={`0 0 ${chartWidth} ${chartHeight + 24}`} role="img" aria-labelledby="attestation-trend-title" style={{ display: 'block', width: '100%', height: 'auto' }}>
-            <title id="attestation-trend-title">Attestation activity over time</title>
+            <title id="attestation-trend-title">{intl.formatMessage({ id: 'attestations.chart.titleSvg' })}</title>
             <defs>
               <pattern id="attestation-trend-stripes" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
                 <rect width="6" height="6" fill="var(--surface)" />
@@ -418,7 +423,7 @@ const AttestationTrendChart = memo(function AttestationTrendChart({
                   id={`attestation-trend-bar-${index}`}
                   tabIndex={0}
                   role="img"
-                  aria-label={`${bucket.label}: ${bucket.total} attestations, ${bucket.counts.verified} verified, ${bucket.counts.pending} pending, ${bucket.counts.failed} failed`}
+                  aria-label={intl.formatMessage({ id: 'attestations.chart.barDetail' }, { label: bucket.label, total: bucket.total, verified: bucket.counts.verified, pending: bucket.counts.pending, failed: bucket.counts.failed })}
                   onFocus={() => setFocusedIndex(index)}
                   onBlur={() => setFocusedIndex(null)}
                   onKeyDown={(event) => {
@@ -450,7 +455,7 @@ const AttestationTrendChart = memo(function AttestationTrendChart({
                     const stroke = status === 'failed' || status === 'pending' ? meta.marker : 'none';
                     return (
                       <rect key={status} x={x} y={y} width={barWidth} height={segmentHeight} fill={fill} stroke={stroke} strokeWidth={stroke === 'none' ? 0 : 2}>
-                        <title>{`${bucket.label} ${meta.label}: ${count}`}</title>
+                        <title>{`${bucket.label} ${intl.formatMessage({ id: meta.messageId })}: ${count}`}</title>
                       </rect>
                     );
                   })}
@@ -492,7 +497,7 @@ const AttestationTrendChart = memo(function AttestationTrendChart({
                   <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true" style={{ display: 'block' }}>
                     <rect width="12" height="12" fill={status === 'failed' ? 'url(#attestation-trend-stripes)' : status === 'pending' ? 'url(#attestation-trend-dots)' : meta.marker} stroke={status === 'failed' || status === 'pending' ? meta.marker : 'none'} strokeWidth="1.5" />
                   </svg>
-                  {meta.label}
+                  {intl.formatMessage({ id: meta.messageId })}
                 </span>
               );
             })}
@@ -505,6 +510,7 @@ const AttestationTrendChart = memo(function AttestationTrendChart({
 })
 
 const TimelineRow = memo(function TimelineRow({ item }: { item: AttestationListItem }) {
+  const intl = useIntl()
   const meta = STATUS_META[item.status];
   const formattedDate = formatCompactDate(item.createdAt);
   const shortRoot = middleEllipsis(item.merkleRoot, 12, 12);
@@ -539,7 +545,7 @@ const TimelineRow = memo(function TimelineRow({ item }: { item: AttestationListI
       </div>
 
       <article
-        aria-label={`Attestation ${meta.label} created ${formattedDate}`}
+        aria-label={intl.formatMessage({ id: 'attestations.timeline.rowAria' }, { status: intl.formatMessage({ id: meta.messageId }), date: formattedDate })}
         style={{
           padding: "var(--density-padding)",
           borderRadius: 12,
@@ -587,7 +593,7 @@ const TimelineRow = memo(function TimelineRow({ item }: { item: AttestationListI
               letterSpacing: '0.02em',
             }}
           >
-            Merkle root
+            {intl.formatMessage({ id: 'attestations.merkleRoot' })}
           </div>
           <div
             style={{
@@ -614,7 +620,7 @@ const TimelineRow = memo(function TimelineRow({ item }: { item: AttestationListI
           to={`/attestations/${item.id}`}
           style={{ fontSize: '0.85rem', color: 'var(--accent)', fontWeight: 600 }}
         >
-          View details →
+          {intl.formatMessage({ id: 'attestations.viewDetails' })}
         </Link>
       </article>
     </li>
@@ -633,6 +639,7 @@ function getUpcomingOccurrences(rule: ScheduleRule, count: number) {
 }
 
 function AttestationScheduleView() {
+  const intl = useIntl()
   const schedules = useSchedules()
   const [editingRule, setEditingRule] = useState<ScheduleRule | null>(null)
   const [announcement, setAnnouncement] = useState('')
@@ -668,7 +675,7 @@ function AttestationScheduleView() {
   function deleteRule(rule: ScheduleRule) {
     scheduleStore.remove(rule.id)
     if (editingRule?.id === rule.id) setEditingRule(null)
-    setAnnouncement('Attestation schedule deleted.')
+    setAnnouncement(intl.formatMessage({ id: 'attestations.schedule.deletedAnnouncement' }))
   }
 
   return (
@@ -682,7 +689,7 @@ function AttestationScheduleView() {
       />
 
       <section
-        aria-label="Saved attestation schedules"
+        aria-label={intl.formatMessage({ id: 'attestations.aria.savedSchedules' })}
         style={{
           padding: 'var(--density-padding)',
           borderRadius: 14,
@@ -690,9 +697,9 @@ function AttestationScheduleView() {
           background: 'var(--surface)',
         }}
       >
-        <h2 style={{ margin: 0, fontSize: '1.1rem' }}>Upcoming runs</h2>
+        <h2 style={{ margin: 0, fontSize: '1.1rem' }}>{intl.formatMessage({ id: 'attestations.schedule.upcomingRuns' })}</h2>
         {upcomingRuns.length === 0 ? (
-          <p style={{ color: 'var(--muted)' }}>No schedules saved yet.</p>
+          <p style={{ color: 'var(--muted)' }}>{intl.formatMessage({ id: 'attestations.schedule.empty' })}</p>
         ) : (
           <ol style={{ display: 'grid', gap: '0.65rem', paddingLeft: '1.25rem' }}>
             {upcomingRuns.map(({ rule, occurrence }) => (
@@ -705,7 +712,7 @@ function AttestationScheduleView() {
                   }).format(new Date(occurrence.scheduledAt))}
                 </time>
                 {' — '}
-                {rule.cadence} schedule ({rule.timeZone})
+                {intl.formatMessage({ id: 'attestations.schedule.runSummary' }, { cadence: rule.cadence, timeZone: rule.timeZone })}
               </li>
             ))}
           </ol>
@@ -727,11 +734,11 @@ function AttestationScheduleView() {
                 }}
               >
                 <span>
-                  {rule.cadence} from {rule.startDate} at {rule.localTime} ({rule.timeZone})
+                  {intl.formatMessage({ id: 'attestations.schedule.ruleSummary' }, { cadence: rule.cadence, startDate: rule.startDate, localTime: rule.localTime, timeZone: rule.timeZone })}
                 </span>
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  <button type="button" onClick={() => setEditingRule(rule)}>Edit</button>
-                  <button type="button" onClick={() => deleteRule(rule)}>Delete</button>
+                  <button type="button" onClick={() => setEditingRule(rule)}>{intl.formatMessage({ id: 'attestations.schedule.edit' })}</button>
+                  <button type="button" onClick={() => deleteRule(rule)}>{intl.formatMessage({ id: 'attestations.schedule.delete' })}</button>
                 </div>
               </div>
             ))}
@@ -746,6 +753,7 @@ function AttestationScheduleView() {
 }
 
 export default function Attestations() {
+  const intl = useIntl()
   // Modal state
   const [modalOpen, setModalOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -821,10 +829,10 @@ export default function Attestations() {
 
     try {
       await trigger(DEFAULT_TRIGGER_DETAILS)
-      addToast('Attestation submitted successfully.', 'success')
+      addToast(intl.formatMessage({ id: 'attestations.toast.attestationSubmitted' }), 'success')
       setModalOpen(false)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to process attestation')
+      setError(err instanceof Error ? err.message : intl.formatMessage({ id: 'attestations.toast.attestationFailed' }))
     } finally {
       setIsLoading(false)
     }
@@ -834,7 +842,7 @@ export default function Attestations() {
     <>
       <div style={{ maxWidth: 1040, paddingBottom: 'var(--space-touch)' }}>
         <header style={{ display: 'grid', gap: 'var(--density-row-gap)' }}>
-          <h1 style={{ margin: 0 }}>Attestations</h1>
+          <h1 style={{ margin: 0 }}>{intl.formatMessage({ id: 'attestations.title' })}</h1>
           <p
             style={{
               color: 'var(--muted)',
@@ -843,14 +851,13 @@ export default function Attestations() {
               maxWidth: 78 * 10,
             }}
           >
-            Revenue attestations published on Stellar. Merkle roots and metadata are stored on-chain,
-            with a proof-history timeline for each run.
+            {intl.formatMessage({ id: 'attestations.subtitle' })}
           </p>
         </header>
 
         <div
           role="tablist"
-          aria-label="Attestations sections"
+          aria-label={intl.formatMessage({ id: 'attestations.aria.sections' })}
           onKeyDown={(event) => {
             if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
             event.preventDefault()
@@ -881,7 +888,7 @@ export default function Attestations() {
                 cursor: 'pointer',
               }}
             >
-              {view === 'overview' ? 'Overview' : 'Schedule'}
+              {view === 'overview' ? intl.formatMessage({ id: 'attestations.tab.overview' }) : intl.formatMessage({ id: 'attestations.tab.schedule' })}
             </button>
           ))}
         </div>
@@ -904,18 +911,18 @@ export default function Attestations() {
         >
           {attestations.length > 0 && <AttestationTrendChart attestations={attestations} />}
 
-          <section aria-label="Attestation runs" style={{ marginTop: '1.5rem' }}>
+          <section aria-label={intl.formatMessage({ id: 'attestations.aria.runs' })} style={{ marginTop: '1.5rem' }}>
           {attestations.length === 0 ? (
             <EmptyState onRunReport={handleOpenModal} />
           ) : (
             <>
               <SearchFilter
-                placeholder="Search attestations by ID, Merkle root, source, or status…"
-                chips={STATUS_CHIPS}
+                placeholder={intl.formatMessage({ id: 'attestations.search.placeholder' })}
+                chips={STATUS_CHIPS.map((c) => ({ id: c.id, label: intl.formatMessage({ id: c.messageId }), color: c.color }))}
                 showDateRange
                 resultCount={filteredAttestations.length}
                 totalCount={attestations.length}
-                entityLabel="attestation"
+                entityLabel={intl.formatMessage({ id: 'attestations.search.entityLabel' })}
               />
 
               {filteredAttestations.length === 0 ? (
@@ -929,7 +936,7 @@ export default function Attestations() {
                     color: 'var(--muted)',
                   }}
                 >
-                  No attestations match the current filters.
+                  {intl.formatMessage({ id: 'attestations.noResults' })}
                 </p>
               ) : (
                 <>
@@ -941,7 +948,7 @@ export default function Attestations() {
 
                   {totalPages > 1 && (
                     <nav
-                      aria-label="Attestations pagination"
+                      aria-label={intl.formatMessage({ id: 'attestations.aria.pagination' })}
                       style={{
                         display: 'flex',
                         alignItems: 'center',
@@ -967,10 +974,10 @@ export default function Attestations() {
                           opacity: currentPage <= 1 ? 0.5 : 1,
                         }}
                       >
-                        Previous
+                        {intl.formatMessage({ id: 'attestations.pagination.previous' })}
                       </button>
                       <span style={{ color: 'var(--muted)', fontSize: '0.9rem', fontWeight: 600 }}>
-                        Page {currentPage} of {totalPages}
+                        {intl.formatMessage({ id: 'attestations.pagination.pageInfo' }, { current: currentPage, total: totalPages })}
                       </span>
                       <button
                         type="button"
@@ -988,7 +995,7 @@ export default function Attestations() {
                           opacity: currentPage >= totalPages ? 0.5 : 1,
                         }}
                       >
-                        Next
+                        {intl.formatMessage({ id: 'attestations.pagination.next' })}
                       </button>
                     </nav>
                   )}

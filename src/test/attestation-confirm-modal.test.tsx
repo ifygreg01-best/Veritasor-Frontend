@@ -4,9 +4,20 @@ import { render, screen, fireEvent, act, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
 import AttestationConfirmModal from '../components/AttestationConfirmModal'
 import Dashboard from '../pages/Dashboard'
+import { LocaleProvider } from '../i18n/provider'
+import { ToastProvider } from '../components/ToastContext'
+import { AttestationsProvider } from '../state/attestations'
 
 function renderWithRouter(ui: React.ReactElement) {
-  return render(<MemoryRouter>{ui}</MemoryRouter>)
+  return render(
+    <MemoryRouter>
+      <LocaleProvider>
+        <AttestationsProvider>
+          <ToastProvider>{ui}</ToastProvider>
+        </AttestationsProvider>
+      </LocaleProvider>
+    </MemoryRouter>,
+  )
 }
 
 const DEMO_DETAILS = {
@@ -728,7 +739,9 @@ describe('Dashboard', () => {
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: /confirm & attest/i }))
     })
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    })
   })
 
   it('can reopen modal after closing', () => {

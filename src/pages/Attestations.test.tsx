@@ -6,6 +6,7 @@ import { ToastProvider } from '../components/ToastContext'
 import { AttestationsProvider, type Attestation } from '../state/attestations'
 import { createMockAttestations } from '../state/attestationMocks'
 import { scheduleStore } from '../store/scheduleStore'
+import { LocaleProvider } from '../i18n/provider'
 
 beforeEach(() => {
   scheduleStore.reset()
@@ -16,13 +17,15 @@ function renderPage(options?: {
   initialAttestations?: Attestation[]
 }) {
   return render(
-    <AttestationsProvider initialAttestations={options?.initialAttestations}>
-      <ToastProvider>
-        <MemoryRouter initialEntries={options?.initialEntries}>
-          <Attestations />
-        </MemoryRouter>
-      </ToastProvider>
-    </AttestationsProvider>,
+    <LocaleProvider>
+      <AttestationsProvider initialAttestations={options?.initialAttestations}>
+        <ToastProvider>
+          <MemoryRouter initialEntries={options?.initialEntries}>
+            <Attestations />
+          </MemoryRouter>
+        </ToastProvider>
+      </AttestationsProvider>
+    </LocaleProvider>,
   )
 }
 
