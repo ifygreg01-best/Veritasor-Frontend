@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo, useRef, useEffect, type CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
+import { useIntl, type IntlShape } from 'react-intl'
 import { useDragReorder } from '../hooks/useDragReorder'
 import { useMutation } from '../hooks/useMutation'
 import { useToast } from '../components/ToastContext'
@@ -12,30 +13,29 @@ import { useSources, sourcesStore, type Source, type HealthStatus } from '../sto
 // Helpers
 // ---------------------------------------------------------------------------
 
-const STATUS_META: Record<HealthStatus, { label: string; bg: string; color: string }> = {
-  healthy: { label: 'Healthy', bg: 'var(--success-soft)', color: 'var(--success)' },
-  warning: { label: 'Warning', bg: 'var(--warning-soft)', color: 'var(--warning)' },
-  error: { label: 'Error', bg: 'var(--danger-soft)', color: 'var(--danger)' },
+const STATUS_META: Record<HealthStatus, { messageId: string; bg: string; color: string }> = {
+  healthy: { messageId: 'revenueSources.status.healthy', bg: 'var(--success-soft)', color: 'var(--success)' },
+  warning: { messageId: 'revenueSources.status.warning', bg: 'var(--warning-soft)', color: 'var(--warning)' },
+  error: { messageId: 'revenueSources.status.error', bg: 'var(--danger-soft)', color: 'var(--danger)' },
 }
 
-function formatSync(iso: string | null) {
-  if (!iso) return 'Never'
+function formatSync(iso: string | null, neverLabel: string) {
+  if (!iso) return neverLabel
   return new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
 }
 
 /**
- * Returns a human-readable relative time string for how long ago a date was.
- * e.g. "3 days ago", "about 2 months ago"
+ * Returns a translated relative time string for how long ago a date was.
  */
-function formatRelativeTime(iso: string): string {
+function formatRelativeTime(iso: string, intl: IntlShape): string {
   const diffMs = Date.now() - new Date(iso).getTime()
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
-  if (diffDays < 1) return 'today'
-  if (diffDays === 1) return '1 day ago'
-  if (diffDays < 30) return `${diffDays} days ago`
+  if (diffDays < 1) return intl.formatMessage({ id: 'revenueSources.relativeTime.today' })
+  if (diffDays === 1) return intl.formatMessage({ id: 'revenueSources.relativeTime.oneDayAgo' })
+  if (diffDays < 30) return intl.formatMessage({ id: 'revenueSources.relativeTime.daysAgo' }, { days: diffDays })
   const diffMonths = Math.round(diffDays / 30)
-  if (diffMonths === 1) return 'about 1 month ago'
-  return `about ${diffMonths} months ago`
+  if (diffMonths === 1) return intl.formatMessage({ id: 'revenueSources.relativeTime.aboutOneMonthAgo' })
+  return intl.formatMessage({ id: 'revenueSources.relativeTime.aboutMonthsAgo' }, { months: diffMonths })
 }
 
 // ---------------------------------------------------------------------------
@@ -58,14 +58,14 @@ function getMockImpact(provider: string): ImpactPipeline[] {
   ]
 }
 
-function formatNextRun(iso: string): string {
+function formatNextRun(iso: string, intl: IntlShape): string {
   const d = new Date(iso)
   const now = new Date()
   const diff = d.getTime() - now.getTime()
-  if (diff < 0) return 'Overdue'
-  if (diff < 86400000) return 'Tomorrow'
-  if (diff < 86400000 * 2) return 'In 2 days'
-  if (diff < 86400000 * 7) return `In ${Math.round(diff / 86400000)} days`
+  if (diff < 0) return intl.formatMessage({ id: 'revenueSources.relativeTime.overdue' })
+  if (diff < 86400000) return intl.formatMessage({ id: 'revenueSources.relativeTime.tomorrow' })
+  if (diff < 86400000 * 2) return intl.formatMessage({ id: 'revenueSources.relativeTime.inDays' }, { count: 2 })
+  if (diff < 86400000 * 7) return intl.formatMessage({ id: 'revenueSources.relativeTime.inDays' }, { count: Math.round(diff / 86400000) })
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
 }
 
@@ -81,6 +81,7 @@ interface ExpiredTokenBannerProps {
 }
 
 function ExpiredTokenBanner({ sources, onReconnect, dismissedIds, onDismiss }: ExpiredTokenBannerProps) {
+  const intl = useIntl()
   const expiredSources = sources.filter(
     (s) => s.tokenExpiredAt !== undefined && !dismissedIds.has(s.id),
   )
@@ -89,7 +90,7 @@ function ExpiredTokenBanner({ sources, onReconnect, dismissedIds, onDismiss }: E
 
   return (
     <section
-      aria-label={`${expiredSources.length} revenue source${expiredSources.length !== 1 ? 's' : ''} need${expiredSources.length === 1 ? 's' : ''} reconnecting`}
+      aria-label={intl.formatMessage({ id: 'revenueSources.expiredToken.title' }, { count: expiredSources.length, name: expiredSources[0]?.provider ?? '' })}
       style={{
         display: 'grid',
         gap: '0.625rem',
@@ -123,9 +124,7 @@ function ExpiredTokenBanner({ sources, onReconnect, dismissedIds, onDismiss }: E
             ⚠
           </span>
           <strong style={{ fontSize: '0.95rem', color: 'var(--text)' }}>
-            {expiredSources.length === 1
-              ? `${expiredSources[0].provider} needs reconnecting`
-              : `${expiredSources.length} sources need reconnecting`}
+            {intl.formatMessage({ id: 'revenueSources.expiredToken.title' }, { count: expiredSources.length, name: expiredSources[0]?.provider ?? '' })}
           </strong>
         </div>
       </div>
@@ -133,7 +132,7 @@ function ExpiredTokenBanner({ sources, onReconnect, dismissedIds, onDismiss }: E
       {/* Per-source rows */}
       <ul
         style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: '0.5rem' }}
-        aria-label="Expired integrations"
+        aria-label={intl.formatMessage({ id: 'revenueSources.expiredIntegrations' })}
       >
         {expiredSources.map((source) => (
           <li
@@ -157,9 +156,8 @@ function ExpiredTokenBanner({ sources, onReconnect, dismissedIds, onDismiss }: E
               </span>
             </div>
 
-            {/* Relative expiry time */}
             <span
-              aria-label={`Token expired ${formatRelativeTime(source.tokenExpiredAt!)}`}
+              aria-label={intl.formatMessage({ id: 'revenueSources.expiredToken.expiredLabel' }, { relativeTime: formatRelativeTime(source.tokenExpiredAt!, intl) })}
               style={{
                 fontSize: '0.78rem',
                 color: 'var(--warning)',
@@ -167,14 +165,14 @@ function ExpiredTokenBanner({ sources, onReconnect, dismissedIds, onDismiss }: E
                 flexShrink: 0,
               }}
             >
-              Expired {formatRelativeTime(source.tokenExpiredAt!)}
+              {intl.formatMessage({ id: 'revenueSources.expired' })} {formatRelativeTime(source.tokenExpiredAt!, intl)}
             </span>
 
             {/* Actions */}
             <div style={{ display: 'flex', gap: '0.375rem', flexShrink: 0 }}>
               <button
                 type="button"
-                aria-label={`Reconnect ${source.provider} now`}
+                aria-label={intl.formatMessage({ id: 'revenueSources.reconnectAriaLabel' }, { name: source.provider })}
                 onClick={() => onReconnect(source.id)}
                 style={{
                   ...accentBtn,
@@ -182,11 +180,11 @@ function ExpiredTokenBanner({ sources, onReconnect, dismissedIds, onDismiss }: E
                   padding: '0.35rem 0.875rem',
                 }}
               >
-                Reconnect
+                {intl.formatMessage({ id: 'revenueSources.expiredToken.reconnect' })}
               </button>
               <button
                 type="button"
-                aria-label={`Dismiss reconnect reminder for ${source.provider}`}
+                aria-label={intl.formatMessage({ id: 'revenueSources.dismissAriaLabel' }, { name: source.provider })}
                 onClick={() => onDismiss(source.id)}
                 style={{
                   ...secondaryBtn,
@@ -195,7 +193,7 @@ function ExpiredTokenBanner({ sources, onReconnect, dismissedIds, onDismiss }: E
                   minWidth: 'auto',
                 }}
               >
-                Dismiss
+                {intl.formatMessage({ id: 'revenueSources.expiredToken.dismiss' })}
               </button>
             </div>
           </li>
@@ -204,8 +202,7 @@ function ExpiredTokenBanner({ sources, onReconnect, dismissedIds, onDismiss }: E
 
       {/* Footer note */}
       <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--muted)', lineHeight: 1.55 }}>
-        Attestations that rely on these sources will be incomplete until they are reconnected.
-        Dismissed reminders reappear after 24 hours.
+        {intl.formatMessage({ id: 'revenueSources.banner.footer' })}
       </p>
     </section>
   )
@@ -225,6 +222,7 @@ interface ConfirmDialogProps {
 }
 
 function ConfirmDialog({ source, onConfirm, onCancel }: ConfirmDialogProps) {
+  const intl = useIntl()
   const [typedName, setTypedName] = useState('')
   const expectedName = source.provider
   const isConfirmed = typedName === expectedName
@@ -300,11 +298,10 @@ function ConfirmDialog({ source, onConfirm, onCancel }: ConfirmDialogProps) {
         {/* Header */}
         <div>
           <h2 id="confirm-title" style={{ margin: 0, fontSize: '1.1rem', color: 'var(--danger)' }}>
-            Disconnect {source.provider}?
+            {intl.formatMessage({ id: 'revenueSources.dialog.title' }, { name: source.provider })}
           </h2>
           <p id="confirm-desc" style={{ margin: '0.35rem 0 0', color: 'var(--muted)', fontSize: '0.85rem' }}>
-            <strong style={{ color: 'var(--text)' }}>{source.accountLabel}</strong> will be removed.
-            You can undo this action within 8 seconds.
+            {intl.formatMessage({ id: 'revenueSources.dialog.description' }, { name: <strong style={{ color: 'var(--text)' }}>{source.accountLabel}</strong> })}
           </p>
         </div>
 
@@ -320,7 +317,7 @@ function ConfirmDialog({ source, onConfirm, onCancel }: ConfirmDialogProps) {
           }}
         >
           <div style={{ fontSize: '0.82rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--danger)' }}>
-            ⚠ Affected pipelines
+            {intl.formatMessage({ id: 'revenueSources.dialog.affectedPipelines' })}
           </div>
           <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: '0.5rem' }}>
             {impactPipelines.map((p) => (
@@ -340,14 +337,13 @@ function ConfirmDialog({ source, onConfirm, onCancel }: ConfirmDialogProps) {
               >
                 <span style={{ fontWeight: 600, color: 'var(--text)' }}>{p.name}</span>
                 <span style={{ color: 'var(--muted)', whiteSpace: 'nowrap', fontSize: '0.78rem' }}>
-                  Next: {formatNextRun(p.nextRun)}
+                  {intl.formatMessage({ id: 'revenueSources.dialog.nextRun' }, { date: formatNextRun(p.nextRun, intl) })}
                 </span>
               </li>
             ))}
           </ul>
           <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--muted)', lineHeight: 1.5 }}>
-            Future attestations will not include data from this source.
-            Scheduled attestations listed above may pause or fail.
+            {intl.formatMessage({ id: 'revenueSources.dialog.impact' })}
           </p>
         </div>
 
@@ -357,7 +353,7 @@ function ConfirmDialog({ source, onConfirm, onCancel }: ConfirmDialogProps) {
             htmlFor="disconnect-confirm-input"
             style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text)' }}
           >
-            Type <strong style={{ color: 'var(--danger)' }}>{expectedName}</strong> to confirm
+            {intl.formatMessage({ id: 'revenueSources.dialog.typeToConfirm' }, { name: <strong style={{ color: 'var(--danger)' }}>{expectedName}</strong> })}
           </label>
           <input
             ref={inputRef}
@@ -365,7 +361,7 @@ function ConfirmDialog({ source, onConfirm, onCancel }: ConfirmDialogProps) {
             type="text"
             autoComplete="off"
             spellCheck={false}
-            placeholder={`Type "${expectedName}" to confirm`}
+            placeholder={intl.formatMessage({ id: 'revenueSources.dialog.placeholder' }, { name: expectedName })}
             value={typedName}
             onChange={(e) => setTypedName(e.target.value)}
             aria-describedby="confirm-desc"
@@ -382,14 +378,14 @@ function ConfirmDialog({ source, onConfirm, onCancel }: ConfirmDialogProps) {
           />
           {typedName && !isConfirmed && (
             <p role="alert" style={{ margin: '0.15rem 0 0', fontSize: '0.78rem', color: 'var(--danger)' }}>
-              Name does not match. Please type exactly "{expectedName}".
+              {intl.formatMessage({ id: 'revenueSources.dialog.mismatch' }, { name: expectedName })}
             </p>
           )}
         </div>
 
         {/* Actions */}
         <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
-          <button type="button" onClick={onCancel} style={secondaryBtn}>Cancel</button>
+          <button type="button" onClick={onCancel} style={secondaryBtn}>{intl.formatMessage({ id: 'common.cancel' })}</button>
           <button
             type="button"
             onClick={onConfirm}
@@ -400,7 +396,7 @@ function ConfirmDialog({ source, onConfirm, onCancel }: ConfirmDialogProps) {
               cursor: isConfirmed ? 'pointer' : 'not-allowed',
             }}
           >
-            Disconnect {source.provider}
+            {intl.formatMessage({ id: 'revenueSources.dialog.confirmDisconnect' }, { name: source.provider })}
           </button>
         </div>
       </div>
@@ -476,10 +472,11 @@ interface DragHandleProps {
 }
 
 function DragHandle({ label, isGrabbed, onPointerDown, onKeyDown, onClick }: DragHandleProps) {
+  const intl = useIntl()
   return (
     <button
       type="button"
-      aria-label={isGrabbed ? `Release ${label}` : `Reorder ${label}`}
+      aria-label={isGrabbed ? intl.formatMessage({ id: 'revenueSources.releaseAriaLabel' }, { name: label }) : intl.formatMessage({ id: 'revenueSources.reorderAriaLabel' }, { name: label })}
       aria-pressed={isGrabbed}
       data-testid="drag-handle"
       onPointerDown={onPointerDown}
@@ -558,6 +555,7 @@ function SourceRow({
   onMoveUp,
   onMoveDown,
 }: SourceRowProps) {
+  const intl = useIntl()
   const s = STATUS_META[source.status]
 
   const rowStyle: CSSProperties = {
@@ -585,7 +583,7 @@ function SourceRow({
   return (
     <li
       role="listitem"
-      aria-label={`${source.provider}, priority ${index + 1} of ${totalCount}`}
+      aria-label={intl.formatMessage({ id: 'revenueSources.rowAriaLabel' }, { name: source.provider, position: index + 1, total: totalCount })}
       aria-grabbed={isGrabbed || undefined}
       onPointerEnter={onPointerEnter}
       style={rowStyle}
@@ -598,7 +596,7 @@ function SourceRow({
         onClick={onHandleClick}
       />
 
-      {/* Per-row move up/down controls — keyboard-accessible alternative to drag */}
+      {/* Per-row move up/down controls */}
       <div
         style={{
           display: 'flex',
@@ -610,7 +608,7 @@ function SourceRow({
       >
         <button
           type="button"
-          aria-label={`Move ${source.provider} up`}
+          aria-label={intl.formatMessage({ id: 'revenueSources.moveUp' }, { name: source.provider })}
           disabled={index === 0}
           data-testid={`move-up-${index}`}
           onClick={onMoveUp}
@@ -623,7 +621,7 @@ function SourceRow({
         </button>
         <button
           type="button"
-          aria-label={`Move ${source.provider} down`}
+          aria-label={intl.formatMessage({ id: 'revenueSources.moveDown' }, { name: source.provider })}
           disabled={index === totalCount - 1}
           data-testid={`move-down-${index}`}
           onClick={onMoveDown}
@@ -646,7 +644,7 @@ function SourceRow({
 
       {/* Status badge */}
       <span
-        aria-label={`Health status: ${s.label}`}
+        aria-label={intl.formatMessage({ id: 'revenueSources.healthStatusAria' }, { status: intl.formatMessage({ id: s.messageId }) })}
         style={{
           padding: '0.2rem 0.7rem',
           borderRadius: '999px',
@@ -657,16 +655,16 @@ function SourceRow({
           flexShrink: 0,
         }}
       >
-        {s.label}
+        {intl.formatMessage({ id: s.messageId })}
       </span>
 
       {/* Last sync */}
       <div style={{ color: 'var(--muted)', fontSize: '0.82rem', flexShrink: 0, minWidth: '9rem' }}>
         <span style={{ display: 'block', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.1rem' }}>
-          Last sync
+          {intl.formatMessage({ id: 'revenueSources.lastSync' })}
         </span>
         <time dateTime={source.lastSync ?? ''} style={{ color: 'var(--text)' }}>
-          {formatSync(source.lastSync)}
+          {formatSync(source.lastSync, intl.formatMessage({ id: 'revenueSources.lastSync.never' }))}
         </time>
       </div>
 
@@ -675,20 +673,20 @@ function SourceRow({
         {source.status !== 'healthy' && (
           <button
             type="button"
-            aria-label={`Reconnect ${source.provider}`}
+            aria-label={intl.formatMessage({ id: 'revenueSources.reconnectAriaLabel2' }, { name: source.provider })}
             onClick={() => onReconnect(source.id)}
             style={accentBtn}
           >
-            Reconnect
+            {intl.formatMessage({ id: 'revenueSources.reconnect' })}
           </button>
         )}
         <button
           type="button"
-          aria-label={`Disconnect ${source.provider}`}
+          aria-label={intl.formatMessage({ id: 'revenueSources.disconnectAriaLabel' }, { name: source.provider })}
           onClick={() => onDisconnect(source)}
           style={dangerBtn}
         >
-          Disconnect
+          {intl.formatMessage({ id: 'revenueSources.disconnect' })}
         </button>
       </div>
     </li>
@@ -717,6 +715,7 @@ function SourceRow({
 // ---------------------------------------------------------------------------
 
 export default function RevenueSources() {
+  const intl = useIntl()
   const { addToast } = useToast()
   const sources = useSources()
   const reorderMutation = useMutation<Source[], Source[]>({
@@ -728,7 +727,7 @@ export default function RevenueSources() {
         body: JSON.stringify({ sourceIds: nextSources.map((source) => source.id) }),
       })
       if (!response.ok) {
-        throw new Error(`Could not save source order (HTTP ${response.status}).`)
+        throw new Error(intl.formatMessage({ id: 'revenueSources.error.reorderFailed' }, { status: response.status }))
       }
     },
     onMutate: (nextSources) => {
@@ -794,23 +793,22 @@ export default function RevenueSources() {
     setPendingDisconnect(null)
     sourcesStore.remove(source.id)
     addToast(
-      `Disconnected ${source.provider}`,
+      intl.formatMessage({ id: 'revenueSources.toast.disconnected' }, { name: source.provider }),
       'info',
       8000,
       () => {
         sourcesStore.restore(source, removeIndex !== -1 ? removeIndex : undefined)
-        addToast(`Reconnected ${source.provider}`, 'success')
+        addToast(intl.formatMessage({ id: 'revenueSources.toast.reconnected' }, { name: source.provider }), 'success')
       },
-      'Undo'
+      intl.formatMessage({ id: 'common.undo' }),
     )
   }
 
   return (
     <div style={{ maxWidth: '52rem' }}>
-      <h1 style={{ marginTop: 0 }}>Revenue Sources</h1>
+      <h1 style={{ marginTop: 0 }}>{intl.formatMessage({ id: 'revenueSources.title' })}</h1>
       <p style={{ color: 'var(--muted)' }}>
-        Connected integrations used to collect revenue data for attestations.
-        Drag or use the handle's keyboard controls to set attestation priority order.
+        {intl.formatMessage({ id: 'revenueSources.subtitle' })}
       </p>
 
       {/* aria-live region for drag/keyboard announcements */}
@@ -834,7 +832,7 @@ export default function RevenueSources() {
 
       {sources.length === 0 ? (
         <section
-          aria-label="No sources connected"
+          aria-label={intl.formatMessage({ id: 'revenueSources.aria.emptyState' })}
           style={{
             marginTop: '2rem',
             padding: '1.5rem',
@@ -845,19 +843,19 @@ export default function RevenueSources() {
         >
           <EmptyStateIllustration type="revenue-sources" />
           <p style={{ margin: '0.5rem 0 1rem', color: 'var(--muted)' }}>
-            No revenue sources connected.
+            {intl.formatMessage({ id: 'revenueSources.empty.message' })}
           </p>
           <Link
             to="/connect-source/provider"
             className="app-button app-button-primary"
             style={{ display: 'inline-flex', textDecoration: 'none' }}
           >
-            Connect a source
+            {intl.formatMessage({ id: 'revenueSources.empty.connectSource' })}
           </Link>
         </section>
       ) : (
         <ul
-          aria-label="Connected revenue sources"
+          aria-label={intl.formatMessage({ id: 'revenueSources.aria.list' })}
           onPointerUp={handlePointerUp}
           onPointerCancel={handlePointerCancel}
           onPointerMove={handlePointerMove}

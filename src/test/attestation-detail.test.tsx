@@ -3,6 +3,9 @@ import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/re
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import AttestationDetail from '../pages/AttestationDetail'
 import Attestations from '../pages/Attestations'
+import { LocaleProvider } from '../i18n/provider'
+import { ToastProvider } from '../components/ToastContext'
+import { AttestationsProvider } from '../state/attestations'
 
 afterEach(() => cleanup())
 
@@ -28,7 +31,13 @@ describe('Attestations list', () => {
   it('renders heading and description', () => {
     render(
       <MemoryRouter>
-        <Attestations />
+        <LocaleProvider>
+          <AttestationsProvider>
+            <ToastProvider>
+              <Attestations />
+            </ToastProvider>
+          </AttestationsProvider>
+        </LocaleProvider>
       </MemoryRouter>,
     )
     expect(screen.getByRole('heading', { level: 1, name: /attestations/i })).toBeInTheDocument()
@@ -38,7 +47,13 @@ describe('Attestations list', () => {
   it('renders list items with links to detail view', () => {
     render(
       <MemoryRouter>
-        <Attestations />
+        <LocaleProvider>
+          <AttestationsProvider>
+            <ToastProvider>
+              <Attestations />
+            </ToastProvider>
+          </AttestationsProvider>
+        </LocaleProvider>
       </MemoryRouter>,
     )
     const links = screen.getAllByRole('link', { name: /view details/i })
@@ -50,7 +65,13 @@ describe('Attestations list', () => {
   it('shows status badges', () => {
     render(
       <MemoryRouter>
-        <Attestations />
+        <LocaleProvider>
+          <AttestationsProvider>
+            <ToastProvider>
+              <Attestations />
+            </ToastProvider>
+          </AttestationsProvider>
+        </LocaleProvider>
       </MemoryRouter>,
     )
     expect(screen.getAllByText('Verified').length).toBeGreaterThanOrEqual(1)
